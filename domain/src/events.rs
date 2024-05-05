@@ -14,7 +14,7 @@ use tokio::sync::broadcast;
 use crate::market::{CurrencyCode, CurrencyPair, ExchangeAccountId};
 use crate::order::event::OrderEvent;
 use crate::order::snapshot::{Amount, OrderSide, OrderStatus, Price};
-use crate::order_book::event::OrderBookEvent;
+use crate::order_book::event::{IndexPriceEvent, OrderBookEvent};
 use crate::position::DerivativePosition;
 
 pub const CHANNEL_MAX_EVENTS_COUNT: usize = 200_000;
@@ -219,6 +219,7 @@ pub enum ExchangeEvent {
     BalanceUpdate(BalanceUpdateEvent),
     LiquidationPrice(LiquidationPriceEvent),
     Trades(TradesEvent),
+    IndexPrice(IndexPriceEvent),
 }
 
 pub struct ExchangeEvents {

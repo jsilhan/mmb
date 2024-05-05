@@ -82,6 +82,17 @@ impl InternalEventsLoop {
                 ExchangeEvent::BalanceUpdate(_) => {}
                 ExchangeEvent::LiquidationPrice(_) => {}
                 ExchangeEvent::Trades(_) => {}
+                ExchangeEvent::IndexPrice(index_price_event) => {
+                    let exchange_account_id = index_price_event.exchange_account_id;
+                    let exchange = exchanges_map.get(&exchange_account_id).with_expect(|| {
+                        format!("Failed to get Exchange for {}", exchange_account_id)
+                    });
+                    for currency_pair in index_price_event.currency_pairs {
+                        exchange
+                            .index_price
+                            .insert(currency_pair, index_price_event.price);
+                    }
+                }
             }
         }
     }

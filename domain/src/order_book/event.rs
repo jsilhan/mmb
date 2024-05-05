@@ -1,7 +1,9 @@
+use chrono::Utc;
 use mmb_utils::DateTime;
 
 use crate::market::CurrencyPair;
 use crate::market::*;
+use crate::order::snapshot::Price;
 use crate::order_book::local_order_book_snapshot::LocalOrderBookSnapshot;
 use crate::order_book::order_book_data::OrderBookData;
 use std::sync::Arc;
@@ -27,6 +29,32 @@ pub struct OrderBookEvent {
 
     pub event_type: EventType,
     pub data: Arc<OrderBookData>,
+}
+
+/// Event to update index price
+#[derive(Debug, Clone)]
+pub struct IndexPriceEvent {
+    _id: u128,
+    pub creation_time: DateTime,
+    pub exchange_account_id: ExchangeAccountId,
+    pub currency_pairs: Vec<CurrencyPair>,
+    pub price: Price,
+}
+
+impl IndexPriceEvent {
+    pub fn new(
+        exchange_account_id: ExchangeAccountId,
+        currency_pairs: Vec<CurrencyPair>,
+        price: Price,
+    ) -> IndexPriceEvent {
+        IndexPriceEvent {
+            _id: 0,
+            creation_time: Utc::now(),
+            exchange_account_id,
+            currency_pairs,
+            price,
+        }
+    }
 }
 
 impl OrderBookEvent {

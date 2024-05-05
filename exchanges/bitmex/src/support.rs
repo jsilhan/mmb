@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use bstr::ByteSlice;
 use chrono::Utc;
 use dashmap::DashMap;
+use lazy_static::lazy_static;
 use mmb_core::connectivity::WebSocketRole;
 use mmb_core::exchanges::common::send_event;
 use mmb_core::exchanges::general::handlers::handle_order_filled::{
@@ -22,16 +23,44 @@ use mmb_domain::events::{EventSourceType, ExchangeEvent, Trade};
 use mmb_domain::market::{CurrencyCode, CurrencyId, CurrencyPair, SpecificCurrencyPair};
 use mmb_domain::order::fill::OrderFillType;
 use mmb_domain::order::snapshot::{Amount, OrderSide, Price};
-use mmb_domain::order_book::event::{EventType, OrderBookEvent};
+use mmb_domain::order_book::event::{EventType, IndexPriceEvent, OrderBookEvent};
 use mmb_domain::order_book::order_book_data::OrderBookData;
 use rust_decimal_macros::dec;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::any::Any;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Deref;
 use std::sync::Arc;
 use url::Url;
+
+lazy_static! {
+    static ref INDEX_TO_PAIR_SYMBOLS: HashMap<&'static str, HashSet<SpecificCurrencyPair>> = {
+        let mut map = HashMap::new();
+        map.insert(
+            ".BXBT",
+            HashSet::from([
+                SpecificCurrencyPair::new("XBT_USD"),
+                SpecificCurrencyPair::new("XBT_USDT"),
+                SpecificCurrencyPair::new("XBTUSD"),
+                SpecificCurrencyPair::new("XBTUSDT"),
+            ]),
+        );
+        // TODO add the rest of indicies for crypto pairs from https://www.bitmex.com/app/indices
+        map
+    };
+}
+
+fn get_index_symbols(currency_pairs: &[SpecificCurrencyPair]) -> HashSet<&'static str> {
+    let mut indexes = HashSet::new();
+    for (index, symbols) in INDEX_TO_PAIR_SYMBOLS.iter() {
+        if currency_pairs.iter().any(|pair| symbols.contains(pair)) {
+            indexes.insert(*index);
+        }
+    }
+    indexes
+}
 
 #[async_trait]
 impl Support for Bitmex {
@@ -193,6 +222,7 @@ impl Bitmex {
             }
             BitmexPayloadData::Trade { action, data } => self.handle_trade(action, data)?,
             BitmexPayloadData::Execution { action, data } => self.handle_execution(action, data)?,
+            BitmexPayloadData::Instrument { data } => self.send_index_price_event(data)?,
         }
 
         Ok(())
@@ -305,6 +335,27 @@ impl Bitmex {
 
     fn is_order_book_initialized(&self) -> bool {
         !self.order_book_ids.lock().is_empty()
+    }
+
+    fn send_index_price_event(&self, data: Vec<BitmexInstrumentIndexPayload>) -> Result<()> {
+        if let Some(index_price) = data[0].last_price {
+            let index_price_event = IndexPriceEvent::new(
+                self.settings.exchange_account_id,
+                INDEX_TO_PAIR_SYMBOLS[data[0].symbol]
+                    .iter()
+                    .flat_map(|pair| self.get_unified_currency_pair(pair))
+                    .collect(),
+                index_price,
+            );
+            send_event(
+                &self.events_channel,
+                self.lifetime_manager.clone(),
+                self.settings.exchange_account_id,
+                ExchangeEvent::IndexPrice(index_price_event),
+            )
+        } else {
+            Ok(())
+        }
     }
 
     fn send_order_book_event(
@@ -470,6 +521,9 @@ impl Bitmex {
                 SubscriptionType::Execution,
             ],
             traded_currencies.deref(),
+            self.get_settings()
+                .subscribe_to_index_price
+                .unwrap_or(false),
         );
 
         (self.websocket_message_callback)(WebSocketRole::Main, subscriptions)
@@ -478,6 +532,7 @@ impl Bitmex {
     fn subscribe_to_websocket_events(
         subscriptions: Vec<SubscriptionType>,
         currency_pairs: &[SpecificCurrencyPair],
+        subscribe_to_index_price: bool,
     ) -> String {
         let mut request = Request {
             operation: SubscriptionOperationType::Subscribe,
@@ -488,6 +543,12 @@ impl Bitmex {
                 request
                     .args
                     .push(format!("{}:{currency_pair}", subscription.as_str()));
+            }
+        }
+
+        if subscribe_to_index_price {
+            for index in get_index_symbols(currency_pairs) {
+                request.args.push(format!("instrument:{index}",));
             }
         }
 
@@ -682,6 +743,9 @@ enum BitmexPayloadData<'a> {
         action: SubscriptionDataAction,
         data: Vec<BitmexOrderExecutionPayload<'a>>,
     },
+    Instrument {
+        data: Vec<BitmexInstrumentIndexPayload<'a>>,
+    },
 }
 
 #[derive(Deserialize, Debug)]
@@ -703,6 +767,14 @@ enum BitmexOrderExecutionPayload<'a> {
     PartiallyFilled(BitmexOrderFill<'a>),
     Canceled(BitmexOrderStatus<'a>),
     Rejected(BitmexOrderStatus<'a>),
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(bound(deserialize = "'de: 'a"))]
+pub(crate) struct BitmexInstrumentIndexPayload<'a> {
+    pub(crate) symbol: &'a str,
+    #[serde(rename = "lastPrice")]
+    pub(crate) last_price: Option<Price>,
 }
 
 #[allow(clippy::large_enum_variant)]

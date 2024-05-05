@@ -203,7 +203,9 @@ impl DispositionExecutor {
                     OrderEventType::CreateOrderFailed => {
                         let client_order_id = order.client_order_id();
                         log::trace!("Started handling event CreateOrderFailed {client_order_id} in DispositionExecutor");
-                        let Some(price_slot) = self.get_price_slot(order) else { return Ok(()); };
+                        let Some(price_slot) = self.get_price_slot(order) else {
+                            return Ok(());
+                        };
 
                         self.finish_order(order, price_slot)?;
                         log::trace!("Finished handling event CreateOrderFailed {client_order_id} in DispositionExecutor");

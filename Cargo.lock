@@ -571,6 +571,7 @@ dependencies = [
  "itertools",
  "jsonrpc-core",
  "jsonrpc-core-client",
+ "lazy_static",
  "log",
  "mmb_core",
  "mmb_domain",
