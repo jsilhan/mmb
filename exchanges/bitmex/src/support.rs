@@ -80,7 +80,7 @@ impl Support for Bitmex {
             WebsocketMessage::Info(info) => {
                 log::info!("{info:?}")
             }
-            WebsocketMessage::Unknown(_) => {
+            WebsocketMessage::Unknown(_value) => {
                 let error = format!("Unsupported Bitmex websocket message: {msg}");
                 log::error!("{error}");
                 panic!("{error}");
@@ -451,7 +451,7 @@ impl Bitmex {
                     data.exchange_order_id,
                     EventSourceType::WebSocket,
                 ),
-                BitmexOrderExecutionPayload::Rejected(_) => (), // Nothing to do cause it's been already handled during create_order() response handling
+                BitmexOrderExecutionPayload::Rejected(_data) => (), // Nothing to do cause it's been already handled during create_order() response handling
                 BitmexOrderExecutionPayload::Filled(variant)
                 | BitmexOrderExecutionPayload::PartiallyFilled(variant) => match variant {
                     BitmexOrderFill::Trade(data) => {

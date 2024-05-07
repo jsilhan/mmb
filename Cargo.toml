@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 members = [
     "control_panel",
     "core",
@@ -15,9 +16,6 @@ members = [
     "mmb_rpc",
     "mmb_utils",
     "visualization/api",
-    "urlencoding_macro"
+    "urlencoding_macro",
 ]
-exclude = [
-    "examples/serum_demo",
-    "exchanges/serum",
-]
+exclude = ["examples/serum_demo", "exchanges/serum"]
