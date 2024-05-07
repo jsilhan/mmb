@@ -562,12 +562,12 @@ pub(crate) struct BitmexBalanceInfo<'a> {
 pub(crate) struct PositionPayload {
     pub(crate) symbol: SpecificCurrencyPair,
     #[serde(rename = "currentQty")]
-    pub(crate) amount: Decimal,
+    pub(crate) amount: Option<Decimal>,
     #[serde(rename = "avgEntryPrice")]
     pub(crate) average_entry_price: Option<Price>,
     #[serde(rename = "liquidationPrice")]
     pub(crate) liquidation_price: Option<Price>,
-    pub(crate) leverage: Decimal,
+    pub(crate) leverage: Option<Decimal>,
     #[serde(rename = "isOpen")]
     pub(crate) is_open: bool,
     #[serde(deserialize_with = "deserialize_datetime")]

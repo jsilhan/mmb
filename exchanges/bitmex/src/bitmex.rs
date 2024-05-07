@@ -720,15 +720,21 @@ impl Bitmex {
                             )
                         })?;
 
-                let derivative_position = DerivativePosition {
-                    currency_pair: *currency_pair,
-                    position: position.amount,
-                    average_entry_price: position.average_entry_price.unwrap_or_default(),
-                    liquidation_price: position.liquidation_price.unwrap_or_default(),
-                    leverage: position.leverage,
-                };
+                if let (Some(amount), Some(leverage)) = (position.amount, position.leverage) {
+                    let derivative_position = DerivativePosition {
+                        currency_pair: *currency_pair,
+                        position: amount,
+                        average_entry_price: position.average_entry_price.unwrap_or_default(),
+                        liquidation_price: position.liquidation_price.unwrap_or_default(),
+                        leverage,
+                    };
 
-                Ok(ActivePosition::new(derivative_position, position.timestamp))
+                    Ok(ActivePosition::new(derivative_position, position.timestamp))
+                } else {
+                    Err(anyhow!(
+                        "Open position does not contain 'amount' and 'leverage'"
+                    ))
+                }
             }))
     }
 
