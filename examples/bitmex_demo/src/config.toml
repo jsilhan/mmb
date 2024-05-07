@@ -9,8 +9,9 @@ exchange_account_id = "Bitmex_0"
 is_margin_trading = true
 request_trades = false
 subscribe_to_market_data = true
+currency_pairs = [{ base = "xbt", quote = "usd" }]
+# this has to be there but it is hardcoded in the code
 websocket_channels = []
 
-currency_pairs = [
-    { base = "xbt", quote = "usd" },
-]
+[core.database]
+migrations = ["../../binance_demo_new/migrations"]
