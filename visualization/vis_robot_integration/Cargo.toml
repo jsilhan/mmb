@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 function_name = "0.3"
-itertools = "0.10"
+itertools = "0.12"
 log = "0.4"
 mmb_core = { path = "../../core" }
 mmb_database = { path = "../../mmb_database" }

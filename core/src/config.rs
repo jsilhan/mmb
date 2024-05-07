@@ -7,7 +7,7 @@ use serde::de::DeserializeOwned;
 use std::fs::read_to_string;
 use std::{collections::HashMap, io::Write};
 use std::{fmt::Debug, fs::File};
-use toml_edit::{value, ArrayOfTables, Document, Table};
+use toml_edit::{value, ArrayOfTables, DocumentMut, Table};
 
 pub static EXCHANGE_ACCOUNT_ID: &str = "exchange_account_id";
 pub static API_KEY: &str = "api_key";
@@ -70,7 +70,7 @@ where
 }
 
 pub fn save_settings(settings: &str, config_path: &str, credentials_path: &str) -> Result<()> {
-    let mut serialized_settings: Document = settings.parse()?;
+    let mut serialized_settings: DocumentMut = settings.parse()?;
 
     // Write credentials in their own config file
     let mut credentials_per_exchange = HashMap::new();
@@ -103,14 +103,14 @@ pub fn save_settings(settings: &str, config_path: &str, credentials_path: &str) 
     Ok(())
 }
 
-fn parse_toml_settings(settings: &str, credentials: &str) -> Result<Document> {
-    let mut settings: Document = settings.parse().context("Unable parse settings")?;
+fn parse_toml_settings(settings: &str, credentials: &str) -> Result<DocumentMut> {
+    let mut settings: DocumentMut = settings.parse().context("Unable parse settings")?;
 
     let exchanges = get_exchanges_mut(&mut settings)
         .context("Unable to get 'core.exchanges' array from gotten settings")?;
 
     if !exchanges.is_empty() {
-        let credentials: Document = credentials.parse()?;
+        let credentials: DocumentMut = credentials.parse()?;
         let credentials = credentials.as_table();
 
         // Extract creds according to exchange_account_id and add it to every ExchangeSettings
@@ -163,7 +163,7 @@ fn get_credentials_data(exchange_settings: &Table) -> Option<(String, String, St
     Some((exchange_account_id, api_key, secret_key))
 }
 
-fn get_exchanges_mut(serialized: &mut Document) -> Option<&mut ArrayOfTables> {
+fn get_exchanges_mut(serialized: &mut DocumentMut) -> Option<&mut ArrayOfTables> {
     serialized
         .as_table_mut()
         .get_mut("core")?
