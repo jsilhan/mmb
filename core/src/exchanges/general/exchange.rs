@@ -699,6 +699,11 @@ impl Exchange {
 
         if let Some(positions) = &balances_and_positions.positions {
             for position_info in positions {
+                if position_info.position.is_zero() {
+                    // there was a race condition that updated balance position sooner
+                    // when no open position exists no need to handle liquidation
+                    continue;
+                }
                 self.handle_liquidation_price(
                     position_info.currency_pair,
                     position_info.liquidation_price,
