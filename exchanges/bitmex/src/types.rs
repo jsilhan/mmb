@@ -8,6 +8,19 @@ use serde::{de, Deserialize, Deserializer};
 use std::fmt;
 use std::fmt::Debug;
 
+#[derive(Debug, Deserialize)]
+pub(crate) struct BitmexTableExecutionData {
+    #[serde(rename = "ordStatus")]
+    pub(crate) order_status: String,
+    #[serde(rename = "ordRejReason")]
+    pub(crate) order_rejected_reason: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct BitmexTableExecution {
+    pub(crate) data: Vec<BitmexTableExecutionData>,
+}
+
 /// Bitmex Symbol description
 /// {
 /// "symbol": "string", // The contract for this position.

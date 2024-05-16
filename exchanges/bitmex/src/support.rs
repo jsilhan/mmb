@@ -1,7 +1,7 @@
 use crate::bitmex::Bitmex;
 use crate::types::{
     BitmexOrderBookDelete, BitmexOrderBookInsert, BitmexOrderBookUpdate, BitmexOrderFillDummy,
-    BitmexOrderFillTrade, BitmexOrderStatus, BitmexTradePayload,
+    BitmexOrderFillTrade, BitmexOrderStatus, BitmexTableExecution, BitmexTradePayload,
 };
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
@@ -80,10 +80,27 @@ impl Support for Bitmex {
             WebsocketMessage::Info(info) => {
                 log::info!("{info:?}")
             }
-            WebsocketMessage::Unknown(_value) => {
-                let error = format!("Unsupported Bitmex websocket message: {msg}");
-                log::error!("{error}");
-                panic!("{error}");
+            WebsocketMessage::Unknown(value) => {
+                let execution_message: Result<BitmexTableExecution, serde_json::Error> =
+                    serde_json::from_value(value);
+                if let Ok(message) = execution_message {
+                    for order in message.data {
+                        if order.order_status == "Rejected"
+                            && order.order_rejected_reason
+                                == "Order had execInst of Close or ReduceOnly but current position is 0"
+                        {
+                            return Ok(());
+                        } else {
+                            let error = format!("Unsupported Bitmex websocket message: {msg}");
+                            log::error!("{error}");
+                            panic!("{error}");
+                        }
+                    }
+                } else {
+                    let error = format!("Unsupported Bitmex websocket messages: {msg}");
+                    log::error!("{error}");
+                    panic!("{error}");
+                }
             }
         }
 
