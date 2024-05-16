@@ -50,6 +50,59 @@ impl LocalOrderBookSnapshot {
         }
     }
 
+    pub fn calculate_global_average_symmetric_price(&self) -> Option<Price> {
+        // taken from https://gist.github.com/iUmarov/ff3689dcbd93ac081e3c4f526caa8a4a
+        let mut numerator = dec!(0);
+        let mut denominator = dec!(0);
+
+        let mut bids = self.get_bids_price_levels();
+        let mut asks = self.get_asks_price_levels();
+        let (Some(level_ask), Some(level_bid)) = (asks.next(), bids.next()) else {
+            return None;
+        };
+        let mut bid_qty = *level_bid.1;
+        let mut ask_qty = *level_ask.1;
+        let mut bid_price = level_bid.0;
+        let mut ask_price = level_ask.0;
+
+        loop {
+            if bid_qty < ask_qty {
+                numerator += bid_qty * bid_price + bid_qty * ask_price;
+                denominator += dec!(2) * bid_qty;
+                if let Some(level_bid) = bids.next() {
+                    ask_qty -= bid_qty;
+                    (bid_price, bid_qty) = (level_bid.0, *level_bid.1);
+                } else {
+                    break;
+                };
+            } else if ask_qty < bid_qty {
+                numerator += ask_qty * bid_price + ask_qty * ask_price;
+                denominator += dec!(2) * ask_qty;
+                if let Some(level_ask) = asks.next() {
+                    bid_qty -= ask_qty;
+                    (ask_price, ask_qty) = (level_ask.0, *level_ask.1);
+                } else {
+                    break;
+                };
+            } else {
+                numerator += ask_qty * bid_price + ask_qty * ask_price;
+                denominator += dec!(2) * ask_qty;
+                if let (Some(level_ask), Some(level_bid)) = (asks.next(), bids.next()) {
+                    (ask_price, ask_qty) = (level_ask.0, *level_ask.1);
+                    (bid_price, bid_qty) = (level_bid.0, *level_bid.1);
+                } else {
+                    break;
+                };
+            }
+        }
+
+        if denominator.is_zero() {
+            None
+        } else {
+            numerator.checked_div(denominator)
+        }
+    }
+
     /// Update inner asks and bids
     pub fn apply_update(&mut self, update: &OrderBookData, update_time: DateTime) {
         OrderBookData::apply_update(&mut self.asks, &mut self.bids, update);
@@ -227,6 +280,27 @@ mod tests {
 
         assert_eq!(iter.next().expect("in test"), (&dec!(1.0), &dec!(0.1)));
         assert_eq!(iter.next().expect("in test"), (&dec!(3.0), &dec!(4.2)));
+    }
+    #[test]
+    fn calculate_global_average_symmetric_price() {
+        let mut asks = SortedOrderData::new();
+        asks.insert(dec!(100), dec!(4.8));
+        asks.insert(dec!(99), dec!(4.6));
+        asks.insert(dec!(98), dec!(4));
+        let mut bids = SortedOrderData::new();
+        bids.insert(dec!(97), dec!(0.1));
+        bids.insert(dec!(96), dec!(0.2));
+        bids.insert(dec!(95), dec!(6));
+
+        let order_book_snapshot = LocalOrderBookSnapshot::new(asks, bids, Utc::now());
+
+        assert_eq!(
+            order_book_snapshot
+                .calculate_global_average_symmetric_price()
+                .unwrap()
+                .round_dp(2),
+            dec!(96.71)
+        );
     }
 
     #[test]
