@@ -59,6 +59,7 @@ pub struct ExchangeSettings {
     pub subscribe_to_index_price: Option<bool>,
     pub websocket_channels: Vec<String>,
     pub currency_pairs: Option<Vec<CurrencyPairSetting>>,
+    pub is_demo_instance: Option<bool>,
 }
 
 impl ExchangeSettings {
@@ -80,6 +81,7 @@ impl ExchangeSettings {
             subscribe_to_market_data: true,
             subscribe_to_index_price: Some(false),
             is_reducing_market_data: None,
+            is_demo_instance: Some(false),
         }
     }
 }
@@ -97,6 +99,7 @@ impl Default for ExchangeSettings {
             subscribe_to_market_data: true,
             subscribe_to_index_price: Some(false),
             is_reducing_market_data: None,
+            is_demo_instance: Some(false),
         }
     }
 }

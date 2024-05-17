@@ -192,6 +192,7 @@ impl Bitmex {
         events_channel: broadcast::Sender<ExchangeEvent>,
         lifetime_manager: Arc<AppLifetimeManager>,
     ) -> Bitmex {
+        let is_demo_instance = settings.is_demo_instance.unwrap_or(false);
         Self {
             rest_client: RestClient::new(
                 ErrorHandlerData::new(
@@ -202,7 +203,7 @@ impl Bitmex {
                 RestHeadersBitmex::new(settings.api_key.clone(), settings.secret_key.clone()),
             ),
             settings,
-            hosts: Self::make_hosts(),
+            hosts: Self::make_hosts(is_demo_instance),
             unified_to_specific: Default::default(),
             specific_to_unified: Default::default(),
             supported_currencies: Default::default(),
@@ -220,11 +221,19 @@ impl Bitmex {
         }
     }
 
-    fn make_hosts() -> Hosts {
-        Hosts {
-            web_socket_host: "wss://www.bitmex.com/realtime",
-            web_socket2_host: "wss://www.bitmex.com/realtime",
-            rest_host: "https://www.bitmex.com",
+    fn make_hosts(is_demo_instance: bool) -> Hosts {
+        if is_demo_instance {
+            Hosts {
+                web_socket_host: "wss://ws.testnet.bitmex.com/realtime",
+                web_socket2_host: "wss://ws.testnet.bitmex.com/realtime",
+                rest_host: "https://testnet.bitmex.com",
+            }
+        } else {
+            Hosts {
+                web_socket_host: "wss://www.bitmex.com/realtime",
+                web_socket2_host: "wss://www.bitmex.com/realtime",
+                rest_host: "https://www.bitmex.com",
+            }
         }
     }
 
