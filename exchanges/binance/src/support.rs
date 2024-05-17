@@ -317,7 +317,7 @@ impl Binance {
                 price,
                 quantity,
                 side: order_side,
-                transaction_time: Utc.timestamp_millis(datetime),
+                transaction_time: Utc.timestamp_millis_opt(datetime).unwrap(),
             },
         );
 

@@ -109,22 +109,6 @@ impl ProfitLossStopperService {
 
 #[async_trait]
 impl BalanceChangeAccumulator for ProfitLossStopperService {
-    // TODO: Fix me when DatabaseManager will be implemented
-    async fn load_data(
-        &self,
-        // database_manager: DatabaseManager,
-        cancellation_token: CancellationToken,
-    ) {
-        let futures = self.usd_periodic_calculators.iter().map(|x| {
-            x.load_data(
-                // database_manager: DatabaseManager,
-                cancellation_token.clone(),
-            )
-        });
-
-        join_all(futures).await;
-    }
-
     fn add_balance_change(&self, balance_change: &ProfitLossBalanceChange) {
         for usd_periodic_calculator in self.usd_periodic_calculators.iter() {
             usd_periodic_calculator.add_balance_change(balance_change);

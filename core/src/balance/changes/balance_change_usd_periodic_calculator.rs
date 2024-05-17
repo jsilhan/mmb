@@ -72,26 +72,6 @@ impl BalanceChangeUsdPeriodicCalculator {
 
 #[async_trait]
 impl BalanceChangeAccumulator for BalanceChangeUsdPeriodicCalculator {
-    // TODO: fix when DatabaseManager will be added
-    async fn load_data(
-        &self,
-        // database_manager: DatabaseManager,
-        _cancellation_token: CancellationToken,
-    ) {
-        //             await using var session = databaseManager.Sql;
-
-        //             var fromDate = _dateTimeService.UtcNow - Period;
-        //             var balanceChanges = await session.Set<ProfitLossBalanceChange>()
-        //                 .Where(x => x.DateTime >= fromDate)
-        //                 .OrderBy(x => x.DateTime)
-        //                 .ToListAsync(cancellationToken);
-
-        //             foreach (var balanceChange in balanceChanges)
-        //             {
-        //                 _balanceChangePeriodSelector.Add(balanceChange);
-        //             }
-    }
-
     fn add_balance_change(&self, balance_change: &ProfitLossBalanceChange) {
         self.balance_change_period_selector
             .lock()
