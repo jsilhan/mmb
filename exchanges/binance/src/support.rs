@@ -348,12 +348,12 @@ impl Binance {
             }
         };
 
-        let datetime = data["T"]
+        let update_sequence = data["lastUpdateId"]
             .as_i64()
-            .context("Unable to get i64 from 'T' field json data")?;
+            .context("Unable to get i64 from 'lastUpdateId' field json data")?;
 
         (self.handle_metrics_callback)(MetricsEventInfo::new(
-            datetime,
+            update_sequence,
             get_current_milliseconds(),
             EventSourceType::WebSocket,
             MetricsEventType::OrderBookEvent,
