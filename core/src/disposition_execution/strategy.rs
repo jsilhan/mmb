@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use mmb_utils::DateTime;
 
-use crate::disposition_execution::{PriceSlot, TradingContext};
+use crate::disposition_execution::TradingContext;
 use crate::explanation::Explanation;
 use crate::order_book::local_snapshot_service::LocalSnapshotsService;
 use crate::service_configuration::configuration_descriptor::ConfigurationDescriptor;
@@ -22,9 +22,8 @@ pub trait DispositionStrategy: Send + Sync + 'static {
     ) -> Option<TradingContext>;
 
     fn handle_order_fill(
-        &self,
+        &mut self,
         cloned_order: &Arc<OrderSnapshot>,
-        price_slot: &PriceSlot,
         target_eai: ExchangeAccountId,
         cancellation_token: CancellationToken,
     ) -> Result<()>;

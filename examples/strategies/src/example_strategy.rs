@@ -3,7 +3,7 @@ use itertools::Itertools;
 use mmb_core::balance::manager::balance_manager::BalanceManager;
 use mmb_core::disposition_execution::strategy::DispositionStrategy;
 use mmb_core::disposition_execution::{
-    PriceSlot, TradeCycle, TradeDisposition, TradingContext, TradingContextBySide,
+    TradeCycle, TradeDisposition, TradingContext, TradingContextBySide,
 };
 use mmb_core::explanation::{Explanation, WithExplanation};
 use mmb_core::lifecycle::trading_engine::EngineContext;
@@ -244,9 +244,8 @@ impl DispositionStrategy for ExampleStrategy {
     }
 
     fn handle_order_fill(
-        &self,
+        &mut self,
         _cloned_order: &Arc<OrderSnapshot>,
-        _price_slot: &PriceSlot,
         _target_eai: ExchangeAccountId,
         _cancellation_token: CancellationToken,
     ) -> Result<()> {

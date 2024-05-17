@@ -215,8 +215,7 @@ impl DispositionExecutor {
                             "Started handling event OrderFilled {} in DispositionExecutor",
                             cloned_order.client_order_id()
                         );
-                        let price_slot = self.get_price_slot(order);
-                        if let Some(price_slot) = price_slot {
+                        if self.get_price_slot(order).is_some() {
                             self.engine_ctx.balance_manager.lock().order_was_filled(
                                 self.strategy.configuration_descriptor(),
                                 cloned_order,
@@ -226,7 +225,12 @@ impl DispositionExecutor {
                                 return Ok(());
                             }
 
-                            self.handle_order_fill(cloned_order, price_slot)?;
+                            Self::handle_order_fill(
+                                &mut self.strategy,
+                                cloned_order,
+                                self.exchange_account_id,
+                                self.cancellation_token.clone(),
+                            )?;
                         }
                         log::trace!(
                             "Finished handling event OrderFilled {} in DispositionExecutor",
@@ -238,10 +242,14 @@ impl DispositionExecutor {
                             "Started handling event OrderCompleted {} in DispositionExecutor",
                             cloned_order.header.client_order_id
                         );
-                        let price_slot = self.get_price_slot(order);
-                        if let Some(price_slot) = price_slot {
-                            self.handle_order_fill(cloned_order, price_slot)?;
-                            self.finish_order(order, price_slot)?;
+                        if self.get_price_slot(order).is_some() {
+                            Self::handle_order_fill(
+                                &mut self.strategy,
+                                cloned_order,
+                                self.exchange_account_id,
+                                self.cancellation_token.clone(),
+                            )?;
+                            self.finish_order(order, self.get_price_slot(order).unwrap())?;
                         }
                         log::trace!(
                             "Finished handling event OrderCompleted {} in DispositionExecutor",
@@ -252,8 +260,7 @@ impl DispositionExecutor {
                         let client_order_id = order.client_order_id();
                         log::trace!("Started handling event CancelOrderSucceeded {client_order_id} in DispositionExecutor");
 
-                        let price_slot = self.get_price_slot(order);
-                        let price_slot = match price_slot {
+                        let price_slot = match self.get_price_slot(order) {
                             None => return Ok(()),
                             Some(v) => v,
                         };
@@ -857,17 +864,17 @@ impl DispositionExecutor {
     }
 
     fn handle_order_fill(
-        &self,
+        strategy: &mut Box<dyn DispositionStrategy>,
         cloned_order: &Arc<OrderSnapshot>,
-        price_slot: &PriceSlot,
+        exchange_account_id: ExchangeAccountId,
+        cancellation_token: CancellationToken,
     ) -> Result<()> {
         log::trace!("Begin handle_order_fill");
 
-        let result = self.strategy.handle_order_fill(
+        let result = strategy.handle_order_fill(
             cloned_order,
-            price_slot,
-            self.exchange_account_id,
-            self.cancellation_token.clone(),
+            exchange_account_id,
+            cancellation_token.clone(),
         );
 
         log::trace!("Finish handle_order_fill");
