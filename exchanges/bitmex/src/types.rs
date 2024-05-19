@@ -400,7 +400,7 @@ pub(crate) struct BitmexOrderFillTrade<'a> {
     #[serde(rename = "execID")]
     pub(crate) trade_id: TradeId,
     #[serde(rename = "clOrdID")]
-    pub(crate) client_order_id: ClientOrderId,
+    pub(crate) client_order_id: Option<ClientOrderId>,
     #[serde(rename = "orderID")]
     pub(crate) exchange_order_id: ExchangeOrderId,
     #[serde(rename = "lastPx")]

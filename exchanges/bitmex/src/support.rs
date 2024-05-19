@@ -477,16 +477,11 @@ impl Bitmex {
                             order_side: data.side,
                             order_amount: data.amount,
                         };
-                        let client_order_id = if !data.client_order_id.is_empty() {
-                            Some(data.client_order_id)
-                        } else {
-                            None
-                        };
 
                         let fill_event = FillEvent {
                             source_type: EventSourceType::WebSocket,
                             trade_id: Some(data.trade_id),
-                            client_order_id,
+                            client_order_id: data.client_order_id,
                             exchange_order_id: data.exchange_order_id,
                             fill_price: data.fill_price,
                             fill_amount: FillAmount::Incremental {
