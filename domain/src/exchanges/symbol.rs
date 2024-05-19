@@ -9,6 +9,7 @@ use rust_decimal::MathematicalOps;
 use rust_decimal_macros::dec;
 use serde::Serialize;
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum Round {
     Floor,
     Ceiling,
