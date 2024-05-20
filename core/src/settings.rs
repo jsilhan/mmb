@@ -1,5 +1,7 @@
 use mmb_domain::market::{CurrencyCode, CurrencyPair, ExchangeAccountId};
 use mmb_domain::order::snapshot::Amount;
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -48,7 +50,6 @@ pub enum CurrencyPairSetting {
 // https://github.com/alexcrichton/toml-rs/issues/142#issuecomment-278970591
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ExchangeSettings {
-    // TODO add other settings
     pub exchange_account_id: ExchangeAccountId,
     pub api_key: String,
     pub secret_key: String,
@@ -60,6 +61,7 @@ pub struct ExchangeSettings {
     pub websocket_channels: Vec<String>,
     pub currency_pairs: Option<Vec<CurrencyPairSetting>>,
     pub is_demo_instance: Option<bool>,
+    pub do_not_cancel_limit_order_within_ticks: Option<Decimal>,
 }
 
 impl ExchangeSettings {
@@ -82,6 +84,7 @@ impl ExchangeSettings {
             subscribe_to_index_price: Some(false),
             is_reducing_market_data: None,
             is_demo_instance: Some(false),
+            do_not_cancel_limit_order_within_ticks: Some(dec!(0)),
         }
     }
 }
@@ -100,6 +103,7 @@ impl Default for ExchangeSettings {
             subscribe_to_index_price: Some(false),
             is_reducing_market_data: None,
             is_demo_instance: Some(false),
+            do_not_cancel_limit_order_within_ticks: Some(dec!(0)),
         }
     }
 }

@@ -425,9 +425,25 @@ impl DispositionExecutor {
         ));
 
         let desired_amount = new_estimating_disposition.order.amount;
-        if new_estimating_disposition.order.price == composite_order_ref.price {
+        let do_not_cancel_limit_order_within_ticks = self
+            .engine_ctx
+            .core_settings
+            .exchanges
+            .iter()
+            .find_map(|e| {
+                if e.exchange_account_id == self.exchange_account_id {
+                    Some(e.do_not_cancel_limit_order_within_ticks)
+                } else {
+                    None
+                }
+            })
+            .flatten()
+            .unwrap_or(dec!(0));
+        if (new_estimating_disposition.order.price - composite_order_ref.price).abs()
+            <= do_not_cancel_limit_order_within_ticks
+        {
             explanation.add_reason(format!(
-                "New price == old price ({})",
+                "New price and old price ({}) are within `do_not_cancel_limit_order_within_ticks` bound",
                 composite_order_ref.price
             ));
 
