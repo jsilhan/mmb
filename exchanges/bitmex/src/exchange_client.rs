@@ -9,7 +9,7 @@ use mmb_core::exchanges::general::order::get_order_trades::OrderTrade;
 use mmb_core::exchanges::traits::{ExchangeClient, ExchangeError};
 use mmb_domain::events::{EventSourceType, ExchangeBalancesAndPositions};
 use mmb_domain::exchanges::symbol::Symbol;
-use mmb_domain::market::CurrencyPair;
+use mmb_domain::market::{CurrencyPair, ExchangeErrorType};
 use mmb_domain::order::pool::OrderRef;
 use mmb_domain::order::snapshot::{ExchangeOrderId, OrderInfo, Price};
 use mmb_domain::position::{ActivePosition, ClosedPosition};
@@ -35,6 +35,14 @@ impl ExchangeClient for Bitmex {
     ) -> CancelOrderResult {
         match self.do_cancel_order(order, exchange_order_id).await {
             Ok(_) => {
+                CancelOrderResult::succeed(order.client_order_id(), EventSourceType::Rest, None)
+            }
+            Err(ExchangeError {
+                error_type: ExchangeErrorType::OrderNotFound,
+                message: _,
+                code: _,
+            }) => {
+                // order was probably already cancelled when Order ID does not exist
                 CancelOrderResult::succeed(order.client_order_id(), EventSourceType::Rest, None)
             }
             Err(err) => CancelOrderResult::failed(err, EventSourceType::Rest),

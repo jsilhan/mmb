@@ -80,27 +80,10 @@ impl Support for Bitmex {
             WebsocketMessage::Info(info) => {
                 log::info!("{info:?}")
             }
-            WebsocketMessage::Unknown(value) => {
-                let execution_message: Result<BitmexTableExecution, serde_json::Error> =
-                    serde_json::from_value(value);
-                if let Ok(message) = execution_message {
-                    for order in message.data {
-                        if order.order_status == "Rejected"
-                            && order.order_rejected_reason
-                                == "Order had execInst of Close or ReduceOnly but current position is 0"
-                        {
-                            return Ok(());
-                        } else {
-                            let error = format!("Unsupported Bitmex websocket message: {msg}");
-                            log::error!("{error}");
-                            panic!("{error}");
-                        }
-                    }
-                } else {
-                    let error = format!("Unsupported Bitmex websocket messages: {msg}");
-                    log::error!("{error}");
-                    panic!("{error}");
-                }
+            WebsocketMessage::Unknown(_value) => {
+                let error = format!("Unsupported Bitmex websocket message: {msg}");
+                log::error!("{error}");
+                panic!("{error}");
             }
         }
 
@@ -453,21 +436,33 @@ impl Bitmex {
         for execution in execution_data {
             match execution {
                 BitmexOrderExecutionPayload::New(data) => {
-                    // No need to handle order as created when close position received
-                    // Order may have several instructions separated by spaces
-                    if !data.instruction.contains("Close") {
-                        (self.order_created_callback)(
-                            data.client_order_id,
-                            data.exchange_order_id,
-                            EventSourceType::WebSocket,
+                    if let Some(client_order_id) = data.client_order_id {
+                        // No need to handle order as created when close position received
+                        // Order may have several instructions separated by spaces
+                        if !data.instruction.contains("Close") {
+                            (self.order_created_callback)(
+                                client_order_id,
+                                data.exchange_order_id,
+                                EventSourceType::WebSocket,
+                            );
+                        }
+                    } else {
+                        log::warn!(
+                            "Ignoring new order execution without client order ID (probably executed from web interface)"
                         );
                     }
                 }
-                BitmexOrderExecutionPayload::Canceled(data) => (self.order_cancelled_callback)(
-                    data.client_order_id,
-                    data.exchange_order_id,
-                    EventSourceType::WebSocket,
-                ),
+                BitmexOrderExecutionPayload::Canceled(data) => {
+                    if let Some(client_order_id) = data.client_order_id {
+                        (self.order_cancelled_callback)(
+                            client_order_id,
+                            data.exchange_order_id,
+                            EventSourceType::WebSocket,
+                        )
+                    } else {
+                        log::warn!("Ignoring cancel order execution without client order ID (probably executed from web interface)");
+                    }
+                }
                 BitmexOrderExecutionPayload::Rejected(_data) => (), // Nothing to do cause it's been already handled during create_order() response handling
                 BitmexOrderExecutionPayload::Filled(variant)
                 | BitmexOrderExecutionPayload::PartiallyFilled(variant) => match variant {

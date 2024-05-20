@@ -388,7 +388,7 @@ pub(crate) struct BitmexOrderStatus<'a> {
     #[serde(rename = "execInst")]
     pub(crate) instruction: &'a str,
     #[serde(rename = "clOrdID")]
-    pub(crate) client_order_id: ClientOrderId,
+    pub(crate) client_order_id: Option<ClientOrderId>,
     #[serde(rename = "orderID")]
     pub(crate) exchange_order_id: ExchangeOrderId,
 }

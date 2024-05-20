@@ -189,6 +189,7 @@ pub enum ExchangeErrorType {
     OrderCompleted,
     InsufficientFunds,
     InvalidOrder,
+    PositionAlreadyCLosed,
     Authentication,
     ParsingError,
     PendingError(Duration),

@@ -77,21 +77,48 @@ impl ErrorHandler for ErrorHandlerBitmex {
     }
 
     fn clarify_error_type(&self, error: &ExchangeError) -> ExchangeErrorType {
-        #[derive(Deserialize)]
+        #[derive(Deserialize, Debug)]
         #[serde(bound(deserialize = "'de: 'a"))]
-        struct BitmexError<'a> {
+        #[serde(untagged)]
+        enum BitmexError<'a> {
+            Single(ErrorObject<'a>),
+            // "Unable to cancel order" was returned in the list
+            Multiple(Vec<ErrorObject<'a>>),
+        }
+
+        #[derive(Deserialize, Debug)]
+        #[serde(bound(deserialize = "'de: 'a"))]
+        struct ErrorObject<'a> {
             error: Message<'a>,
         }
-        #[derive(Deserialize)]
+        #[derive(Deserialize, Debug)]
         #[serde(bound(deserialize = "'de: 'a"))]
-        struct Message<'a> {
-            message: &'a str,
+        #[serde(untagged)]
+        enum Message<'a> {
+            Nested { message: &'a str },
+            // "Unable to cancel order" was returned just in /error structure
+            Simple(&'a str),
         }
 
         let bitmex_error: BitmexError =
             serde_json::from_str(&error.message).expect("Failed to parse Bitmex error message");
 
-        match bitmex_error.error.message {
+        let error_obj = match bitmex_error {
+            BitmexError::Single(ref error) => error,
+            BitmexError::Multiple(ref errors) => {
+                if errors.len() == 1 {
+                    &errors[0]
+                } else {
+                    panic!("Received more or less errors than 1: {:?}", errors);
+                }
+            }
+        };
+        let message = match error_obj.error {
+            Message::Nested { message } => message,
+            Message::Simple(message) => message,
+        };
+
+        match message {
             "Invalid orderID"
             | "Unable to cancel order"
             | "Unable to cancel order due to existing state: Canceled"
@@ -106,6 +133,9 @@ impl ErrorHandler for ErrorHandlerBitmex {
             }
             "Account has insufficient Available Balance" => ExchangeErrorType::InsufficientFunds,
             "Rate limit exceeded" => ExchangeErrorType::RateLimit,
+            "Order had execInst of Close or ReduceOnly but current position is 0" => {
+                ExchangeErrorType::PositionAlreadyCLosed
+            }
             _ => ExchangeErrorType::Unknown,
         }
     }
