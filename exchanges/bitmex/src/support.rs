@@ -531,6 +531,10 @@ impl Bitmex {
             self.get_settings()
                 .subscribe_to_index_price
                 .unwrap_or(false),
+            self.get_settings()
+                .sub_account_id
+                .map(|account| account.to_string())
+                .unwrap_or("*".to_string()),
         );
 
         (self.websocket_message_callback)(WebSocketRole::Main, subscriptions)
@@ -540,6 +544,7 @@ impl Bitmex {
         subscriptions: Vec<SubscriptionType>,
         currency_pairs: &[SpecificCurrencyPair],
         subscribe_to_index_price: bool,
+        sub_account_id: String,
     ) -> String {
         let mut request = Request {
             operation: SubscriptionOperationType::Subscribe,
@@ -547,9 +552,10 @@ impl Bitmex {
         };
         for subscription in subscriptions {
             for currency_pair in currency_pairs {
-                request
-                    .args
-                    .push(format!("{}:{currency_pair}", subscription.as_str()));
+                request.args.push(format!(
+                    "{}:{currency_pair}@[{sub_account_id}]",
+                    subscription.as_str()
+                ));
             }
         }
 

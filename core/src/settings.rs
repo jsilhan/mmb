@@ -62,6 +62,7 @@ pub struct ExchangeSettings {
     pub currency_pairs: Option<Vec<CurrencyPairSetting>>,
     pub is_demo_instance: Option<bool>,
     pub do_not_cancel_limit_order_within_ticks: Option<Decimal>,
+    pub sub_account_id: Option<usize>,
 }
 
 impl ExchangeSettings {
@@ -85,6 +86,7 @@ impl ExchangeSettings {
             is_reducing_market_data: None,
             is_demo_instance: Some(false),
             do_not_cancel_limit_order_within_ticks: Some(dec!(0)),
+            sub_account_id: None,
         }
     }
 }
@@ -104,6 +106,7 @@ impl Default for ExchangeSettings {
             is_reducing_market_data: None,
             is_demo_instance: Some(false),
             do_not_cancel_limit_order_within_ticks: Some(dec!(0)),
+            sub_account_id: None,
         }
     }
 }

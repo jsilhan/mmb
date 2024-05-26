@@ -472,6 +472,7 @@ pub(crate) struct BitmexOrderFillDummy {}
 ///}
 #[derive(Deserialize, Debug)]
 pub(crate) struct BitmexBalanceInfo<'a> {
+    pub(crate) account: usize,
     pub(crate) currency: &'a str,
     #[serde(rename = "availableMargin")]
     pub(crate) balance: Decimal,

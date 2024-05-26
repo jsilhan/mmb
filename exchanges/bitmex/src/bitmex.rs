@@ -358,6 +358,7 @@ impl Bitmex {
         builder.add_kv("side", header.side);
         builder.add_kv("orderQty", header.amount);
         builder.add_kv("clOrdID", header.client_order_id.as_str());
+        self.append_sub_account_id_kv_to_builder(&mut builder, false);
 
         match header.options {
             OrderOptions::User(user_order) => match user_order {
@@ -430,6 +431,7 @@ impl Bitmex {
         if let Some(pair) = currency_pair {
             builder.add_kv("symbol", self.get_specific_currency_pair(pair));
         }
+        self.append_sub_account_id_kv_to_builder(&mut builder, true);
 
         let uri = builder.build_uri(self.hosts.rest_uri_host(), true);
         self.rest_client
@@ -551,6 +553,7 @@ impl Bitmex {
         let mut builder = UriBuilder::from_path("/api/v1/order");
         // Order may be canceled passing either exchange_order_id ("orderID" key) or client_order_id ("clOrdID" key)
         builder.add_kv("orderID", exchange_order_id);
+        self.append_sub_account_id_kv_to_builder(&mut builder, false);
 
         let uri = builder.build_uri(self.hosts.rest_uri_host(), true);
         let log_args = format!("Cancel order for {}", order.client_order_id());
@@ -560,9 +563,27 @@ impl Bitmex {
             .await
     }
 
+    pub(super) fn append_sub_account_id_kv_to_builder(
+        &self,
+        builder: &mut UriBuilder,
+        multiple: bool,
+    ) {
+        if let Some(sub_account_id) = self.get_settings().sub_account_id {
+            if multiple {
+                builder.add_kv(
+                    "targetAccountIds",
+                    format_args!("{}{sub_account_id}{}", encode!("["), encode!("]"),),
+                )
+            } else {
+                builder.add_kv("targetAccountId", sub_account_id)
+            }
+        }
+    }
+
     #[named]
     pub(super) async fn do_cancel_all_orders(&self) -> Result<RestResponse, ExchangeError> {
-        let builder = UriBuilder::from_path("/api/v1/order/all");
+        let mut builder = UriBuilder::from_path("/api/v1/order/all");
+        self.append_sub_account_id_kv_to_builder(&mut builder, true);
 
         let uri = builder.build_uri(self.hosts.rest_uri_host(), true);
         let log_args = "Cancel all orders".to_owned();
@@ -705,6 +726,7 @@ impl Bitmex {
     pub(super) async fn request_get_balance(&self) -> Result<RestResponse, ExchangeError> {
         let mut builder = UriBuilder::from_path("/api/v1/user/margin");
         builder.add_kv("currency", "all");
+        self.append_sub_account_id_kv_to_builder(&mut builder, true);
 
         let uri = builder.build_uri(self.hosts.rest_uri_host(), true);
 
@@ -723,6 +745,13 @@ impl Bitmex {
         let currency_rates = self.currency_balance_rates.lock();
         raw_balances
             .into_iter()
+            .filter(|balance_info| {
+                if let Some(sub_account_id) = self.get_settings().sub_account_id {
+                    balance_info.account == sub_account_id
+                } else {
+                    true
+                }
+            })
             .map(|balance_info| {
                 let currency_code = balance_info.currency.into();
                 let balance_rate = currency_rates.get(&currency_code).ok_or_else(|| {
