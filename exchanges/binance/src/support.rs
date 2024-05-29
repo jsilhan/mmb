@@ -117,7 +117,7 @@ impl Support for Binance {
         start_updating_listen_key(&exchange);
     }
 
-    fn on_websocket_message(&self, msg: &str) -> Result<()> {
+    async fn on_websocket_message(&self, msg: &str) -> Result<()> {
         let mut data: Value =
             serde_json::from_str(msg).context("Unable to parse websocket message")?;
         // Public stream

@@ -140,12 +140,16 @@ pub(crate) struct BitmexSymbol<'a> {
     pub(crate) state: &'a str,
     #[serde(rename = "tickSize")]
     pub(crate) price_tick: Decimal,
+    #[serde(rename = "underlyingToPositionMultiplier")]
+    pub(crate) position_multiplier: Option<Decimal>,
     #[serde(rename = "lotSize")]
     pub(crate) amount_tick: Decimal,
     #[serde(rename = "maxPrice")]
     pub(crate) max_price: Option<Price>,
     #[serde(rename = "maxOrderQty")]
     pub(crate) max_amount: Option<Amount>,
+    #[serde(rename = "isInverse")]
+    pub(crate) is_inverse: bool,
 }
 
 #[derive(PartialEq)]
@@ -384,9 +388,9 @@ pub(crate) struct BitmexTradePayload {
 }
 
 #[derive(Deserialize, Debug)]
-pub(crate) struct BitmexOrderStatus<'a> {
+pub(crate) struct BitmexOrderStatus {
     #[serde(rename = "execInst")]
-    pub(crate) instruction: &'a str,
+    pub(crate) instruction: String,
     #[serde(rename = "clOrdID")]
     pub(crate) client_order_id: Option<ClientOrderId>,
     #[serde(rename = "orderID")]
@@ -394,7 +398,7 @@ pub(crate) struct BitmexOrderStatus<'a> {
 }
 
 #[derive(Deserialize, Debug)]
-pub(crate) struct BitmexOrderFillTrade<'a> {
+pub(crate) struct BitmexOrderFillTrade {
     #[serde(rename = "text")]
     pub(crate) details: String,
     #[serde(rename = "execID")]
@@ -416,7 +420,7 @@ pub(crate) struct BitmexOrderFillTrade<'a> {
     pub(crate) side: OrderSide,
     pub(crate) symbol: SpecificCurrencyPair,
     #[serde(rename = "settlCurrency")]
-    pub(crate) currency: &'a str,
+    pub(crate) currency: String,
     #[serde(rename = "commission")]
     pub(crate) commission_rate: Decimal,
     #[serde(rename = "execComm")]

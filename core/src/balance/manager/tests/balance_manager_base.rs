@@ -258,6 +258,7 @@ impl BalanceManagerBase {
                 self.symbol().currency_pair(),
                 order_side,
                 amount,
+                dec!(1),
                 UserOrder::limit(price),
                 Some(reservation_id),
                 None,

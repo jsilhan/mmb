@@ -7,6 +7,7 @@ use mmb_domain::order::snapshot::{
     ClientOrderId, OrderHeader, OrderInfo, OrderOptions, OrderSimpleProps, OrderSnapshot,
 };
 use mmb_utils::cancellation_token::CancellationToken;
+use rust_decimal_macros::dec;
 use tokio::time::Duration;
 
 impl Exchange {
@@ -121,6 +122,10 @@ impl Exchange {
                 order_info.currency_pair,
                 order_info.order_side,
                 order_info.amount,
+                self.symbols
+                    .get(&order_info.currency_pair)
+                    .map(|s| s.position_multiplier)
+                    .unwrap_or(dec!(1)),
                 OrderOptions::unknown(Some(order_info.price)),
                 None,
                 None,

@@ -50,7 +50,7 @@ impl Support for Serum {
         self
     }
 
-    fn on_websocket_message(&self, msg: &str) -> Result<()> {
+    async fn on_websocket_message(&self, msg: &str) -> Result<()> {
         match self.rpc_client.handle_on_message(msg) {
             SolanaMessage::AccountUpdated(currency_pair, side, ui_account, account_type) => {
                 self.handle_account_market_changed(currency_pair, side, ui_account, account_type)

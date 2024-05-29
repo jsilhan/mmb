@@ -74,6 +74,7 @@ pub struct Symbol {
     pub amount_currency_code: CurrencyCode,
     pub balance_currency_code: Option<CurrencyCode>,
     pub amount_multiplier: Decimal,
+    pub position_multiplier: Decimal,
 
     pub price_precision: Precision,
     pub amount_precision: Precision,
@@ -119,6 +120,7 @@ impl Symbol {
             min_cost,
             balance_currency_code,
             amount_multiplier: dec!(1),
+            position_multiplier: dec!(1),
             price_precision,
             amount_precision,
         }

@@ -47,6 +47,7 @@ use rust_decimal::MathematicalOps;
 use rust_decimal_macros::dec;
 use serde::Deserialize;
 use sha2::Sha256;
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::io::Write;
 use std::sync::Arc;
@@ -299,31 +300,37 @@ impl Bitmex {
                         .insert(specific_currency_pair, unified_currency_pair);
 
                     let (amount_currency_code, balance_currency_code) =
-                        match self.settings.is_margin_trading {
-                            true => (quote, Some(base)),
-                            false => (base, None),
+                        match (self.settings.is_margin_trading, symbol.is_inverse) {
+                            (true, true) => (quote, Some(base)),
+                            (true, false) => (base, Some(quote)),
+                            (false, _) => (base, None),
                         };
+                    let min_amount = if let Some(multiplier) = symbol.position_multiplier {
+                        symbol.amount_tick / multiplier
+                    } else {
+                        symbol.amount_tick
+                    };
 
-                    Arc::new(Symbol::new(
-                        self.settings.is_margin_trading,
-                        symbol.base_id.into(),
-                        base,
-                        symbol.quote_id.into(),
-                        quote,
-                        None,
-                        symbol.max_price,
-                        Some(symbol.amount_tick),
-                        symbol.max_amount,
-                        None,
+                    Arc::new(Symbol {
+                        is_derivative: self.settings.is_margin_trading,
+                        base_currency_id: symbol.base_id.into(),
+                        base_currency_code: base,
+                        quote_currency_id: symbol.quote_id.into(),
+                        quote_currency_code: quote,
+                        min_price: None,
+                        max_price: symbol.max_price,
+                        min_amount: Some(min_amount),
+                        max_amount: symbol.max_amount,
+                        min_cost: None,
                         amount_currency_code,
                         balance_currency_code,
-                        Precision::ByTick {
+                        amount_multiplier: dec!(1),
+                        position_multiplier: symbol.position_multiplier.unwrap_or(dec!(1)),
+                        price_precision: Precision::ByTick {
                             tick: symbol.price_tick,
                         },
-                        Precision::ByTick {
-                            tick: symbol.amount_tick,
-                        },
-                    ))
+                        amount_precision: Precision::ByTick { tick: min_amount },
+                    })
                 })
             })
             .collect_vec())
@@ -356,7 +363,7 @@ impl Bitmex {
         let mut builder = UriBuilder::from_path("/api/v1/order");
         builder.add_kv("symbol", specific_currency_pair);
         builder.add_kv("side", header.side);
-        builder.add_kv("orderQty", header.amount);
+        builder.add_kv("orderQty", header.amount * header.position_multiplier);
         builder.add_kv("clOrdID", header.client_order_id.as_str());
         self.append_sub_account_id_kv_to_builder(&mut builder, false);
 
@@ -660,7 +667,7 @@ impl Bitmex {
                     order_role: Bitmex::get_order_role_by_commission_amount(
                         trade.commission_amount,
                     ),
-                    fee_currency_code: trade.currency.into(),
+                    fee_currency_code: trade.currency.as_str().into(),
                     fee_rate: Some(trade.commission_rate),
                     fee_amount: Some(trade.commission_amount),
                     fill_type: Self::get_order_fill_type(&trade.details).ok()?,

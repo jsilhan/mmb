@@ -46,7 +46,7 @@ impl Support for InteractiveBrokers {
         );
     }
 
-    fn on_websocket_message(&self, _msg: &str) -> Result<()> {
+    async fn on_websocket_message(&self, _msg: &str) -> Result<()> {
         Ok(())
     }
 

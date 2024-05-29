@@ -17,7 +17,7 @@ pub enum ActionAfterGracefulShutdown {
 
 pub struct AppLifetimeManager {
     cancellation_token: CancellationToken,
-    engine_context: Mutex<Option<Weak<EngineContext>>>,
+    pub engine_context: Mutex<Option<Weak<EngineContext>>>,
     pub futures_cancellation_token: CancellationToken,
 }
 

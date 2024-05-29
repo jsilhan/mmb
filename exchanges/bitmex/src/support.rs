@@ -1,7 +1,7 @@
 use crate::bitmex::Bitmex;
 use crate::types::{
     BitmexOrderBookDelete, BitmexOrderBookInsert, BitmexOrderBookUpdate, BitmexOrderFillDummy,
-    BitmexOrderFillTrade, BitmexOrderStatus, BitmexTableExecution, BitmexTradePayload,
+    BitmexOrderFillTrade, BitmexOrderStatus, BitmexTradePayload,
 };
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
@@ -68,7 +68,7 @@ impl Support for Bitmex {
         self
     }
 
-    fn on_websocket_message(&self, msg: &str) -> Result<()> {
+    async fn on_websocket_message(&self, msg: &str) -> Result<()> {
         let message: WebsocketMessage = serde_json::from_str(msg)
             .with_context(|| format!("Unable to parse websocket message:\n{}", msg))?;
 
@@ -76,7 +76,9 @@ impl Support for Bitmex {
             WebsocketMessage::SubscriptionResult(subscription_result) => {
                 self.handle_subscription_result(subscription_result)?
             }
-            WebsocketMessage::Payload(payload_data) => self.handle_websocket_data(payload_data)?,
+            WebsocketMessage::Payload(payload_data) => {
+                self.handle_websocket_data(payload_data).await?
+            }
             WebsocketMessage::Info(info) => {
                 log::info!("{info:?}")
             }
@@ -215,13 +217,15 @@ impl Bitmex {
         }
     }
 
-    fn handle_websocket_data(&self, payload: BitmexPayloadData) -> Result<()> {
+    async fn handle_websocket_data(&self, payload: BitmexPayloadData) -> Result<()> {
         match payload {
             BitmexPayloadData::OrderBookL2(data) | BitmexPayloadData::OrderBookL2_25(data) => {
                 self.handle_order_book_data(data)?
             }
             BitmexPayloadData::Trade { action, data } => self.handle_trade(action, data)?,
-            BitmexPayloadData::Execution { action, data } => self.handle_execution(action, data)?,
+            BitmexPayloadData::Execution { action, data } => {
+                self.handle_execution(action, data).await?
+            }
             BitmexPayloadData::Instrument { data } => self.send_index_price_event(data)?,
         }
 
@@ -341,7 +345,7 @@ impl Bitmex {
         if let Some(index_price) = data[0].last_price {
             let index_price_event = IndexPriceEvent::new(
                 self.settings.exchange_account_id,
-                INDEX_TO_PAIR_SYMBOLS[data[0].symbol]
+                INDEX_TO_PAIR_SYMBOLS[data[0].symbol.as_str()]
                     .iter()
                     .flat_map(|pair| self.get_unified_currency_pair(pair))
                     .collect(),
@@ -423,7 +427,23 @@ impl Bitmex {
         Ok(())
     }
 
-    fn handle_execution(
+    async fn get_position_multiplier(&self, currency_pair: &CurrencyPair) -> Option<Amount> {
+        let exchange_account_id = &self.settings.exchange_account_id;
+        let engine_context_option = self.lifetime_manager.engine_context.lock().await;
+
+        if let Some(weak_engine_context) = &*engine_context_option {
+            if let Some(engine_context) = weak_engine_context.upgrade() {
+                if let Some(exchange) = engine_context.exchanges.get(exchange_account_id) {
+                    if let Some(symbol) = exchange.symbols.get(currency_pair) {
+                        return Some(symbol.position_multiplier);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    async fn handle_execution(
         &self,
         action: SubscriptionDataAction,
         execution_data: Vec<BitmexOrderExecutionPayload>,
@@ -467,10 +487,14 @@ impl Bitmex {
                 BitmexOrderExecutionPayload::Filled(variant)
                 | BitmexOrderExecutionPayload::PartiallyFilled(variant) => match variant {
                     BitmexOrderFill::Trade(data) => {
+                        let currency_pair = self.get_unified_currency_pair(&data.symbol)?;
+                        let position_multiplier =
+                            self.get_position_multiplier(&currency_pair).await;
+                        let position_multiplier = position_multiplier.unwrap_or(dec!(1));
                         let order_data = SpecialOrderData {
-                            currency_pair: self.get_unified_currency_pair(&data.symbol)?,
+                            currency_pair: currency_pair,
                             order_side: data.side,
-                            order_amount: data.amount,
+                            order_amount: data.amount / position_multiplier,
                         };
 
                         let fill_event = FillEvent {
@@ -480,13 +504,15 @@ impl Bitmex {
                             exchange_order_id: data.exchange_order_id,
                             fill_price: data.fill_price,
                             fill_amount: FillAmount::Incremental {
-                                fill_amount: data.fill_amount,
-                                total_filled_amount: Some(data.total_filled_amount),
+                                fill_amount: data.fill_amount / position_multiplier,
+                                total_filled_amount: Some(
+                                    data.total_filled_amount / position_multiplier,
+                                ),
                             },
                             order_role: Some(Bitmex::get_order_role_by_commission_amount(
                                 data.commission_amount,
                             )),
-                            commission_currency_code: Some(data.currency.into()),
+                            commission_currency_code: Some(data.currency.as_str().into()),
                             commission_rate: Some(data.commission_rate),
                             commission_amount: Some(data.commission_amount),
                             fill_type: Self::get_order_fill_type(&data.details)?,
@@ -574,7 +600,7 @@ impl Bitmex {
 #[serde(untagged)]
 enum WebsocketMessage<'a> {
     SubscriptionResult(SubscriptionResult),
-    Payload(BitmexPayloadData<'a>),
+    Payload(BitmexPayloadData),
     Info(InformationMessage<'a>),
     Unknown(Value),
 }
@@ -742,10 +768,9 @@ impl Debug for SubscriptionDataAction {
 }
 
 #[derive(Deserialize, Debug)]
-#[serde(bound(deserialize = "'de: 'a"))]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "table")]
-enum BitmexPayloadData<'a> {
+enum BitmexPayloadData {
     OrderBookL2_25(BitmexOrderBookPayload),
     OrderBookL2(BitmexOrderBookPayload),
     Trade {
@@ -754,10 +779,10 @@ enum BitmexPayloadData<'a> {
     },
     Execution {
         action: SubscriptionDataAction,
-        data: Vec<BitmexOrderExecutionPayload<'a>>,
+        data: Vec<BitmexOrderExecutionPayload>,
     },
     Instrument {
-        data: Vec<BitmexInstrumentIndexPayload<'a>>,
+        data: Vec<BitmexInstrumentIndexPayload>,
     },
 }
 
@@ -772,29 +797,26 @@ enum BitmexOrderBookPayload {
 }
 
 #[derive(Deserialize, Debug)]
-#[serde(bound(deserialize = "'de: 'a"))]
 #[serde(tag = "ordStatus")]
-enum BitmexOrderExecutionPayload<'a> {
-    New(BitmexOrderStatus<'a>),
-    Filled(BitmexOrderFill<'a>),
-    PartiallyFilled(BitmexOrderFill<'a>),
-    Canceled(BitmexOrderStatus<'a>),
-    Rejected(BitmexOrderStatus<'a>),
+enum BitmexOrderExecutionPayload {
+    New(BitmexOrderStatus),
+    Filled(BitmexOrderFill),
+    PartiallyFilled(BitmexOrderFill),
+    Canceled(BitmexOrderStatus),
+    Rejected(BitmexOrderStatus),
 }
 
 #[derive(Deserialize, Debug)]
-#[serde(bound(deserialize = "'de: 'a"))]
-pub(crate) struct BitmexInstrumentIndexPayload<'a> {
-    pub(crate) symbol: &'a str,
+pub(crate) struct BitmexInstrumentIndexPayload {
+    pub(crate) symbol: String,
     #[serde(rename = "lastPrice")]
     pub(crate) last_price: Option<Price>,
 }
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Deserialize, Debug)]
-#[serde(bound(deserialize = "'de: 'a"))]
 #[serde(tag = "execType")]
-pub(crate) enum BitmexOrderFill<'a> {
-    Trade(BitmexOrderFillTrade<'a>),
+pub(crate) enum BitmexOrderFill {
+    Trade(BitmexOrderFillTrade),
     Funding(BitmexOrderFillDummy),
 }

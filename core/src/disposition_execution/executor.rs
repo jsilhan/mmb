@@ -729,6 +729,7 @@ impl DispositionExecutor {
             self.symbol.currency_pair(),
             new_disposition.side(),
             new_order_amount,
+            self.symbol.position_multiplier,
             UserOrder::maker_only(new_disposition.price()),
             Some(reservation_id),
             None,

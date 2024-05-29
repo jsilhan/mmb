@@ -267,10 +267,10 @@ impl Exchange {
         }))
     }
 
-    fn on_websocket_message(&self, msg: &str) {
+    async fn on_websocket_message(&self, msg: &str) {
         self.maybe_log_websocket_message(msg);
 
-        if let Err(error) = self.exchange_client.on_websocket_message(msg) {
+        if let Err(error) = self.exchange_client.on_websocket_message(msg).await {
             log::warn!(
                 "Error occurred while websocket message processing: {error:?}. For message: {msg}"
             );
@@ -402,7 +402,7 @@ impl Exchange {
     ) -> Result<()> {
         while let Some(msg) = reader.recv().await {
             match instance.upgrade() {
-                Some(strong) => strong.on_websocket_message(&msg),
+                Some(strong) => strong.on_websocket_message(&msg).await,
                 None => {
                     // Exchange doesn't exist
                     return Ok(());

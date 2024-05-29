@@ -128,7 +128,7 @@ impl Support for TestClient {
         self
     }
 
-    fn on_websocket_message(&self, _msg: &str) -> Result<()> {
+    async fn on_websocket_message(&self, _msg: &str) -> Result<()> {
         unimplemented!("doesn't need in UT")
     }
     fn on_connecting(&self) -> Result<()> {

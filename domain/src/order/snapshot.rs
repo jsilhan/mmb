@@ -10,6 +10,7 @@ use mmb_utils::{impl_from_for_str_id, DateTime};
 use mmb_utils::{impl_str_id, impl_u64_id, time::get_atomic_current_secs};
 use once_cell::sync::Lazy;
 use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 use serde::{Deserialize, Serialize};
 use smallstr::SmallString;
 use std::any::Any;
@@ -283,6 +284,7 @@ pub struct OrderHeader {
 
     pub side: OrderSide,
     pub amount: Amount,
+    pub position_multiplier: Amount,
 
     pub options: OrderOptions,
 
@@ -306,6 +308,7 @@ impl OrderHeader {
         currency_pair: CurrencyPair,
         side: OrderSide,
         amount: Amount,
+        position_multiplier: Amount,
         user_order: UserOrder,
         reservation_id: Option<ReservationId>,
         signal_id: Option<String>,
@@ -317,6 +320,7 @@ impl OrderHeader {
             currency_pair,
             side,
             amount,
+            position_multiplier,
             OrderOptions::User(user_order),
             reservation_id,
             signal_id,
@@ -331,6 +335,7 @@ impl OrderHeader {
         currency_pair: CurrencyPair,
         side: OrderSide,
         amount: Amount,
+        position_multiplier: Amount,
         options: OrderOptions,
         reservation_id: Option<ReservationId>,
         signal_id: Option<String>,
@@ -344,6 +349,7 @@ impl OrderHeader {
             source_price: options.get_source_price(),
             side,
             amount,
+            position_multiplier,
             options,
             reservation_id,
             signal_id,
@@ -694,6 +700,7 @@ impl OrderSnapshot {
             currency_pair,
             order_side,
             amount,
+            dec!(1),
             options,
             reservation_id,
             None,

@@ -165,7 +165,7 @@ pub trait Support: Send + Sync {
 
     async fn initialized(&self, _exchange: Arc<Exchange>) {}
 
-    fn on_websocket_message(&self, msg: &str) -> Result<()>;
+    async fn on_websocket_message(&self, msg: &str) -> Result<()>;
     fn on_connecting(&self) -> Result<()>;
     fn on_connected(&self) -> Result<()>;
     fn on_disconnected(&self) -> Result<()>;
