@@ -63,6 +63,7 @@ pub struct ExchangeSettings {
     pub is_demo_instance: Option<bool>,
     pub do_not_cancel_limit_order_within_ticks: Option<Decimal>,
     pub sub_account_id: Option<usize>,
+    pub relative_price_to_market_when_within_ticks: Option<Decimal>,
 }
 
 impl ExchangeSettings {
@@ -87,6 +88,7 @@ impl ExchangeSettings {
             is_demo_instance: Some(false),
             do_not_cancel_limit_order_within_ticks: Some(dec!(0)),
             sub_account_id: None,
+            relative_price_to_market_when_within_ticks: None,
         }
     }
 }
@@ -107,6 +109,7 @@ impl Default for ExchangeSettings {
             is_demo_instance: Some(false),
             do_not_cancel_limit_order_within_ticks: Some(dec!(0)),
             sub_account_id: None,
+            relative_price_to_market_when_within_ticks: None,
         }
     }
 }

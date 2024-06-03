@@ -23,9 +23,9 @@ use mmb_core::exchanges::rest_client::{
 use mmb_core::exchanges::timeouts::requests_timeout_manager_factory::RequestTimeoutArguments;
 use mmb_core::exchanges::timeouts::timeout_manager::TimeoutManager;
 use mmb_core::exchanges::traits::{
-    ExchangeClientBuilder, ExchangeClientBuilderResult, ExchangeError, HandleMetricsCb,
-    HandleOrderFilledCb, HandleTradeCb, OrderCancelledCb, OrderCreatedCb, SendWebsocketMessageCb,
-    Support,
+    ExchangeClient, ExchangeClientBuilder, ExchangeClientBuilderResult, ExchangeError,
+    HandleMetricsCb, HandleOrderFilledCb, HandleTradeCb, OrderCancelledCb, OrderCreatedCb,
+    SendWebsocketMessageCb, Support,
 };
 use mmb_core::lifecycle::app_lifetime_manager::AppLifetimeManager;
 use mmb_core::settings::ExchangeSettings;
@@ -352,6 +352,35 @@ impl Bitmex {
         }
     }
 
+    async fn get_top_price(&self, side: OrderSide) -> Option<Price> {
+        // Acquire a lock on the engine_context inside the lifetime_manager
+        if let Some(engine_context_weak) =
+            self.lifetime_manager.engine_context.lock().await.as_ref()
+        {
+            if let Some(engine_context) = engine_context_weak.upgrade() {
+                for exchange in engine_context.exchanges.iter() {
+                    // Iterate over all exchanges
+                    for order_book_top in exchange.value().order_book_top.iter() {
+                        let order_book = order_book_top.value();
+                        match side {
+                            OrderSide::Buy => {
+                                if let Some(bid) = &order_book.bid {
+                                    return Some(bid.price);
+                                }
+                            }
+                            OrderSide::Sell => {
+                                if let Some(ask) = &order_book.ask {
+                                    return Some(ask.price);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
     #[named]
     pub(super) async fn do_create_order(
         &self,
@@ -373,10 +402,23 @@ impl Bitmex {
                     price,
                     execution_type,
                 } => {
-                    builder.add_kv("ordType", "Limit");
-                    builder.add_kv("price", price);
-                    if execution_type == OrderExecutionType::MakerOnly {
-                        builder.add_kv("execInst", "ParticipateDoNotInitiate");
+                    let top_price = self
+                        .get_top_price(header.side)
+                        .await
+                        .unwrap_or(Decimal::MAX);
+                    let price_diff = (price - top_price).abs();
+                    if matches!(self.settings.relative_price_to_market_when_within_ticks, Some(relative_price_to_market_when_within_ticks) if price_diff <= relative_price_to_market_when_within_ticks)
+                    {
+                        builder.add_kv("ordType", "Pegged");
+                        builder.add_kv("pegPriceType", "MarketPeg");
+                        builder.add_kv("execInst", "Fixed");
+                        builder.add_kv("pegOffsetValue", format!("-{price_diff}"));
+                    } else {
+                        builder.add_kv("ordType", "Limit");
+                        builder.add_kv("price", price);
+                        if execution_type == OrderExecutionType::MakerOnly {
+                            builder.add_kv("execInst", "ParticipateDoNotInitiate");
+                        }
                     }
                 }
                 UserOrder::Market => builder.add_kv("ordType", "Market"),
