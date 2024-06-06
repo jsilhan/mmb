@@ -19,6 +19,7 @@ use crate::explanation::{Explanation, WithExplanation};
 use crate::lifecycle::trading_engine::{EngineContext, Service};
 use crate::misc::reserve_parameters::ReserveParameters;
 use crate::order_book::local_snapshot_service::LocalSnapshotsService;
+use crate::settings::ExchangeSettings;
 use crate::{
     disposition_execution::trade_limit::is_enough_amount_and_cost, infrastructure::spawn_future,
 };
@@ -426,17 +427,8 @@ impl DispositionExecutor {
 
         let desired_amount = new_estimating_disposition.order.amount;
         let do_not_cancel_limit_order_within_ticks = self
-            .engine_ctx
-            .core_settings
-            .exchanges
-            .iter()
-            .find_map(|e| {
-                if e.exchange_account_id == self.exchange_account_id {
-                    Some(e.do_not_cancel_limit_order_within_ticks)
-                } else {
-                    None
-                }
-            })
+            .settings()
+            .map(|settings| settings.do_not_cancel_limit_order_within_ticks)
             .flatten()
             .unwrap_or(dec!(0));
         if (new_estimating_disposition.order.price - composite_order_ref.price).abs()
@@ -907,6 +899,20 @@ impl DispositionExecutor {
             .clone()
     }
 
+    fn settings(&self) -> Option<&ExchangeSettings> {
+        self.engine_ctx
+            .core_settings
+            .exchanges
+            .iter()
+            .find_map(|e| {
+                if e.exchange_account_id == self.exchange_account_id {
+                    Some(e)
+                } else {
+                    None
+                }
+            })
+    }
+
     fn prepare_estimate_trading_context(&self, event: &ExchangeEvent, now: DateTime) -> bool {
         let event_time = match event {
             ExchangeEvent::OrderBookEvent(order_book_event) => order_book_event.creation_time,
@@ -917,7 +923,12 @@ impl DispositionExecutor {
         };
 
         // max delay for skipping recalculation of trading context and orders synchronization
-        let delay_for_skipping_event: Duration = Duration::milliseconds(50);
+        let delay_for_skipping_event: Duration = Duration::milliseconds(
+            self.settings()
+                .map(|settings| settings.update_orders_every_millis)
+                .flatten()
+                .unwrap_or(50),
+        );
         if event_time + delay_for_skipping_event < now {
             self.statistics.clone().register_skipped_event();
 

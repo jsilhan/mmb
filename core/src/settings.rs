@@ -64,6 +64,7 @@ pub struct ExchangeSettings {
     pub do_not_cancel_limit_order_within_ticks: Option<Decimal>,
     pub sub_account_id: Option<usize>,
     pub relative_price_to_market_when_within_ticks: Option<Decimal>,
+    pub update_orders_every_millis: Option<i64>,
 }
 
 impl ExchangeSettings {
@@ -89,6 +90,7 @@ impl ExchangeSettings {
             do_not_cancel_limit_order_within_ticks: Some(dec!(0)),
             sub_account_id: None,
             relative_price_to_market_when_within_ticks: None,
+            update_orders_every_millis: None,
         }
     }
 }
@@ -110,6 +112,7 @@ impl Default for ExchangeSettings {
             do_not_cancel_limit_order_within_ticks: Some(dec!(0)),
             sub_account_id: None,
             relative_price_to_market_when_within_ticks: None,
+            update_orders_every_millis: None,
         }
     }
 }
