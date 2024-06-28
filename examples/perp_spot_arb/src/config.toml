@@ -1,0 +1,33 @@
+[strategy]
+enter_trade_offset = 0
+exit_trade_offset = -10
+max_amount = 0.002
+trading_perp_exchange_account_id = "Bitmex_0"
+trading_perp_currency_pair = { base = "xbt", quote = "usdt" }
+following_spot_exchange_account_id = "Binance_0"
+following_spot_currency_pair = { base = "btc", quote = "usdt" }
+diff_history_kept_for_secs = 60
+init_trade_when_min_max_diff_exceeds = 20
+min_max_trade_koeficient = 0.8
+relative_price_to_market_when_within_ticks = 5
+
+[[core.exchanges]]
+exchange_account_id = "Bitmex_0"
+is_margin_trading = true
+request_trades = false
+subscribe_to_market_data = true
+currency_pairs = [{ base = "xbt", quote = "usdt" }]
+# this has to be there but it is hardcoded in the code
+websocket_channels = []
+do_not_cancel_limit_order_within_ticks = 5
+is_demo_instance = false                   # prod
+update_orders_every_millis = 700
+
+[[core.exchanges]]
+exchange_account_id = "Binance_0"
+is_margin_trading = false
+request_trades = true
+subscribe_to_market_data = true
+currency_pairs = [{ base = "btc", quote = "usdt" }]
+websocket_channels = ["depth20@100ms"]
+

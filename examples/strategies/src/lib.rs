@@ -17,3 +17,4 @@
 )]
 
 pub mod example_strategy;
+pub mod perp_spot_arb_strategy;
